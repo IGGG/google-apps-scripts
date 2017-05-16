@@ -17,7 +17,7 @@ function doPost(e) {
   var option = { username : BOT_NAME, icon_url : BOT_ICON, link_names : 1 };
   
   var message = e.parameter.text.split(' ');
-  var channelId = e.parameter.channel_id;
+  var channelName = e.parameter.channel_name;
   
   if (message[0] != ('@' + BOT_NAME)) {
     throw new Error("invalid bot name.");
@@ -40,16 +40,16 @@ function doPost(e) {
       } else {
         text = "OK! set issue."
         option = _.extend(option, result);
-        sheet.getRange(rowNum + 1, 1).setValue(channelId);
+        sheet.getRange(rowNum + 1, 1).setValue(channelName);
         sheet.getRange(rowNum + 1, 2).setValue(number);
       }
       break;
     case "unset-issue:":
       var number = message[2];
       var table = sheet.getRange(1, 1, rowNum, 2).getValues();
-      text = "not set yet: " + channelId + "-" + number;
+      text = "not set yet: " + channelName + " - " + number;
       for(var i = 0; i < table.length; i++) {
-        if (table[i][0] == channelId && table[i][1] == number) {
+        if (table[i][0] == channelName && table[i][1] == number) {
           sheet.getRange(i + 1, 1).setValue('');
           sheet.getRange(i + 1, 2).setValue('');
           text = "OK! unset issue.";
@@ -62,7 +62,7 @@ function doPost(e) {
   }
 
   Logger.log(option);
-  Logger.log(slackApp.postMessage(channelId, text, option));
+  Logger.log(slackApp.postMessage(channelName, text, option));
 }
 
 function getIssue(number, prop) {
@@ -89,7 +89,7 @@ function test() {
     parameter: {
       token: prop.VERIFY_TOKEN,
       text: "@manager unset-issue: 1",
-      channel_id: "bot-test"
+      channel_name: "bot-test"
     }
   }
   doPost(e);
