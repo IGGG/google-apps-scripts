@@ -8,6 +8,7 @@ function doPost(e) {
   /* Load Spread Sheet */
   var sheet = SpreadsheetApp.openById(prop.SPREAD_SHEET_ID).getSheetByName(prop.SHEET_NAME);
   var rowNum = sheet.getLastRow();
+  var table = sheet.getRange(1, 1, rowNum, 2).getValues();
   
   /* for Slack */
   var slackApp = SlackApp.create(prop.SLACK_API_TOKEN);
@@ -33,20 +34,24 @@ function doPost(e) {
       break;
     case "set-issue:":
       var number = message[2];
-      var result = getIssue(number, prop);
-      Logger.log(result);
-      if (result == "error") {
-        text = "issuer #" + number + " is not exist.";
+      var issue = getIssue(number, prop);
+      Logger.log(issue);
+      if (existRow(table, channelName, number)) {
+        text = 'issue #' + number + ' has already been set for #' + channelName;
       } else {
-        text = "OK! set issue."
-        option = _.extend(option, result);
-        sheet.getRange(rowNum + 1, 1).setValue(channelName);
-        sheet.getRange(rowNum + 1, 2).setValue(number);
+        if (issue == "error") {
+          text = "issuer #" + number + " is not exist.";
+        } else {
+          text = "OK! set issue.";
+          var repo = prop.GITHUB_OWNER + '/' + prop.GITHUB_REPO;
+          option = _.extend(option, makeMessage(issue, repo, prop));
+          sheet.getRange(rowNum + 1, 1).setValue(channelName);
+          sheet.getRange(rowNum + 1, 2).setValue(number);
+        }
       }
       break;
     case "unset-issue:":
       var number = message[2];
-      var table = sheet.getRange(1, 1, rowNum, 2).getValues();
       text = "not set yet: " + channelName + " - " + number;
       for(var i = 0; i < table.length; i++) {
         if (table[i][0] == channelName && table[i][1] == number) {
@@ -65,13 +70,24 @@ function doPost(e) {
   Logger.log(slackApp.postMessage(channelName, text, option));
 }
 
+function existRow(table, channelName, number) {
+  for (var i = 0; i < table.length; i++) {
+    if (table[i][1] == number && table[i][0] == channelName)
+      return true;
+  }
+  return false;
+}
+
 function getIssue(number, prop) {
   var github = GitHubAPI.create(prop.GITHUB_OWNER, prop.GITHUB_REPO, prop.GITHUB_API_TOKEN);
-  var issue = github.get("/issues/" + number);
+  return github.get("/issues/" + number);
+}
+
+function makeMessage(issue, repo, prop) {
   var user = '<' + issue["user"]["html_url"] + '|' + issue["user"]["login"] + '>';
-  var pretext = '[' + prop.GITHUB_OWNER + '/' + prop.GITHUB_REPO + ']  Issue created by ' + user; 
-  var title = '#' + number + ' ' + issue["title"];
-  var title_link = issue["html_url"];  
+  var pretext = '[' + repo + ']  Issue created by ' + user; 
+  var title = '#' + issue['number'] + ' ' + issue["title"];
+  var title_link = issue["html_url"];
   return {
     'attachments': JSON.stringify([{
       'pretext': pretext,
@@ -88,7 +104,7 @@ function test() {
   var e = { 
     parameter: {
       token: prop.VERIFY_TOKEN,
-      text: "@manager unset-issue: 1",
+      text: "@manager set-issue: 1",
       channel_name: "bot-test"
     }
   }
