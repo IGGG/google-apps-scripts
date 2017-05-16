@@ -1,12 +1,7 @@
 function doPost(e) {
   var jsonString = e.postData.getDataAsString();
   var jsonData = JSON.parse(jsonString);
-  
-//  var prop = PropertiesService.getScriptProperties().getProperties();
-//  var sheet = SpreadsheetApp.openById(prop.SPREAD_SHEET_ID).getSheetByName('log');
-//  var rowNum = sheet.getLastRow();
-//  var table = sheet.getRange(rowNum+1, 1).setValue(JSON.stringify(e));
-  
+    
   postMessage(jsonData);
 }
 
@@ -15,7 +10,7 @@ function postMessage(data) {
   const repo = prop.GITHUB_OWNER + '/' + prop.GITHUB_REPO;
   
   if (data['repository']['full_name'] != repo && data['comment'] != undefined && data['issue'] != undefined) {
-    throw new Error("invalid repository.");
+    throw new Error('invalid repository.');
   }
   
   var number = data['issue']['number'];
@@ -41,9 +36,9 @@ function postMessage(data) {
   var option = { username : BOT_NAME, icon_url : BOT_ICON, link_names : 1 };
 
   var _ = Underscore.load();
-  channels.forEach(function(channelId){
+  channels.forEach(function(channelName){
     option = _.extend(option, message);
-    Logger.log(slackApp.postMessage(channelId, '', option));  
+    Logger.log(slackApp.postMessage(channelName, '', option));  
   })
 }
 
@@ -80,7 +75,7 @@ function makeMessage(action, comment, issue, repo, prop) {
 
 function getIssueCommentBody(id, prop) {
   var github = GitHubAPI.create(prop.GITHUB_OWNER, prop.GITHUB_REPO, prop.GITHUB_API_TOKEN);
-  var comment = github.get("/issues/comments/" + id);
+  var comment = github.get('/issues/comments/' + id);
   return comment['body'];
 }
 
