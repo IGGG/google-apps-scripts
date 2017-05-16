@@ -14,7 +14,7 @@ function postMessage(data) {
   var prop = PropertiesService.getScriptProperties().getProperties();
   const repo = prop.GITHUB_OWNER + '/' + prop.GITHUB_REPO;
   
-  if (data['repository']['full_name'] != repo && data['comment'] != undefined) {
+  if (data['repository']['full_name'] != repo && data['comment'] != undefined && data['issue'] != undefined) {
     throw new Error("invalid repository.");
   }
   
@@ -101,7 +101,7 @@ function test() {
         'login': 'matsubara0507',
         'html_url': 'https://github.com/matsubara0507'
       },
-      'html_url': 'https://github.com/IGGG/management/issues/15#issuecomment-301657645',
+      'html_url': 'https://github.com/' + prop.GITHUB_OWNER + '/' + prop.GITHUB_REPO + '/issues/15#issuecomment-301657645',
       'body': 'テストテスト',
       'id': 301657645
     }
