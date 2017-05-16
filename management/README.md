@@ -18,3 +18,6 @@ Issue 単位でチャネルと結びつけることは、既存の GitHub Integr
 - **ReadManager** :
   - GitHub のリポジトリに Webhook して Issue のコメントを関連付けしたチャネルに飛ばす。 
   - コメントの編集や削除も通知される
+- **GeneralManager** :
+  - GitHub のリポジトリに Webhook して Issue の Open と Close だけを general に通知する
+  - Close 時には直近のコメントも付与される
