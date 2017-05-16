@@ -2,7 +2,7 @@ function doPost(e) {
   var prop = PropertiesService.getScriptProperties().getProperties();
   
   if (prop.VERIFY_TOKEN != e.parameter.token) {
-    throw new Error("invalid token.");
+    throw new Error('invalid token.');
   }
 
   /* Load Spread Sheet */
@@ -21,48 +21,48 @@ function doPost(e) {
   var channelName = e.parameter.channel_name;
   
   if (message[0] != ('@' + BOT_NAME)) {
-    throw new Error("invalid bot name.");
+    throw new Error('invalid bot name.');
   }
   
   var _ = Underscore.load();
   var subcmd = message[1];
-  var text = "";
+  var text = '';
 
   switch(subcmd) {
-    case "hi":
-      text = "hi";
+    case 'hi':
+      text = 'hi';
       break;
-    case "set-issue:":
+    case 'set-issue:':
       var number = message[2];
       var issue = getIssue(number, prop);
       Logger.log(issue);
-      if (issue == "error") {
-        text = "issuer #" + number + " is not exist.";
+      if (issue == 'error') {
+        text = 'issuer #' + number + ' is not exist.';
         break;
       } 
       if (existRow(table, channelName, number)) {
         text = 'issue <' + issue['html_url'] + '| #' + number + '> has already been set for #' + channelName;
       } else {
-        text = "OK! set issue.";
+        text = 'OK! set issue.';
         var repo = prop.GITHUB_OWNER + '/' + prop.GITHUB_REPO;
         option = _.extend(option, makeMessage(issue, repo, prop));
         sheet.getRange(rowNum + 1, 1).setValue(channelName);
         sheet.getRange(rowNum + 1, 2).setValue(number);
       }
       break;
-    case "unset-issue:":
+    case 'unset-issue:':
       var number = message[2];
-      text = "not set yet: " + channelName + " - " + number;
+      text = 'not set yet: ' + channelName + ' - ' + number;
       for(var i = 0; i < table.length; i++) {
         if (table[i][0] == channelName && table[i][1] == number) {
           sheet.getRange(i + 1, 1).setValue('');
           sheet.getRange(i + 1, 2).setValue('');
-          text = "OK! unset issue.";
+          text = 'OK! unset issue.';
         }
       }
       break;
     default:
-      text = "undefined cmd: " + subcmd;
+      text = 'undefined cmd: ' + subcmd;
       break;
   }
 
@@ -89,17 +89,17 @@ function getIssue(number, prop) {
 }
 
 function makeMessage(issue, repo, prop) {
-  var user = '<' + issue["user"]["html_url"] + '|' + issue["user"]["login"] + '>';
+  var user = '<' + issue['user']['html_url'] + '|' + issue['user']['login'] + '>';
   var pretext = '[' + repo + ']  Issue created by ' + user; 
-  var title = '#' + issue['number'] + ' ' + issue["title"];
-  var title_link = issue["html_url"];
+  var title = '#' + issue['number'] + ' ' + issue['title'];
+  var title_link = issue['html_url'];
   return {
     'attachments': JSON.stringify([{
       'pretext': pretext,
       'title': title,
       'title_link': title_link,
       'color': prop.COLOR,
-      'text': issue["body"]
+      'text': issue['body']
     }])
   };
 }
@@ -109,8 +109,8 @@ function test() {
   var e = { 
     parameter: {
       token: prop.VERIFY_TOKEN,
-      text: "@manager set-issue: 1",
-      channel_name: "bot-test"
+      text: '@manager set-issue: 1',
+      channel_name: 'bot-test'
     }
   }
   doPost(e);
