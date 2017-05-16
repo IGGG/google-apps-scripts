@@ -80,7 +80,12 @@ function existRow(table, channelName, number) {
 
 function getIssue(number, prop) {
   var github = GitHubAPI.create(prop.GITHUB_OWNER, prop.GITHUB_REPO, prop.GITHUB_API_TOKEN);
-  return github.get("/issues/" + number);
+  var issues = github.get('/issues');
+  for (var i = 0; i < issues.length; i++) {
+    if (issues[i]['number'] == number)
+      return issues[i];
+  }
+  return 'error';
 }
 
 function makeMessage(issue, repo, prop) {
@@ -104,7 +109,7 @@ function test() {
   var e = { 
     parameter: {
       token: prop.VERIFY_TOKEN,
-      text: "@manager set-issue: 1",
+      text: "@manager set-issue: 100",
       channel_name: "bot-test"
     }
   }
