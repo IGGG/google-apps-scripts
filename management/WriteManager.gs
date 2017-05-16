@@ -36,18 +36,18 @@ function doPost(e) {
       var number = message[2];
       var issue = getIssue(number, prop);
       Logger.log(issue);
+      if (issue == "error") {
+        text = "issuer #" + number + " is not exist.";
+        break;
+      } 
       if (existRow(table, channelName, number)) {
-        text = 'issue #' + number + ' has already been set for #' + channelName;
+        text = 'issue <' + issue['html_url'] + '| #' + number + '> has already been set for #' + channelName;
       } else {
-        if (issue == "error") {
-          text = "issuer #" + number + " is not exist.";
-        } else {
-          text = "OK! set issue.";
-          var repo = prop.GITHUB_OWNER + '/' + prop.GITHUB_REPO;
-          option = _.extend(option, makeMessage(issue, repo, prop));
-          sheet.getRange(rowNum + 1, 1).setValue(channelName);
-          sheet.getRange(rowNum + 1, 2).setValue(number);
-        }
+        text = "OK! set issue.";
+        var repo = prop.GITHUB_OWNER + '/' + prop.GITHUB_REPO;
+        option = _.extend(option, makeMessage(issue, repo, prop));
+        sheet.getRange(rowNum + 1, 1).setValue(channelName);
+        sheet.getRange(rowNum + 1, 2).setValue(number);
       }
       break;
     case "unset-issue:":
@@ -80,7 +80,7 @@ function existRow(table, channelName, number) {
 
 function getIssue(number, prop) {
   var github = GitHubAPI.create(prop.GITHUB_OWNER, prop.GITHUB_REPO, prop.GITHUB_API_TOKEN);
-  var issues = github.get('/issues');
+  var issues = github.get('/issues?state=all');
   for (var i = 0; i < issues.length; i++) {
     if (issues[i]['number'] == number)
       return issues[i];
@@ -109,7 +109,7 @@ function test() {
   var e = { 
     parameter: {
       token: prop.VERIFY_TOKEN,
-      text: "@manager set-issue: 100",
+      text: "@manager set-issue: 1",
       channel_name: "bot-test"
     }
   }
