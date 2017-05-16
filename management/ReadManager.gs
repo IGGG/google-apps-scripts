@@ -1,13 +1,20 @@
 function doPost(e) {
+  var jsonString = e.postData.getDataAsString();
+  var jsonData = JSON.parse(jsonString);
+  
+//  var prop = PropertiesService.getScriptProperties().getProperties();
+//  var sheet = SpreadsheetApp.openById(prop.SPREAD_SHEET_ID).getSheetByName('log');
+//  var rowNum = sheet.getLastRow();
+//  var table = sheet.getRange(rowNum+1, 1).setValue(JSON.stringify(e));
+  
+  postMessage(jsonData);
+}
+
+function postMessage(data) {
   var prop = PropertiesService.getScriptProperties().getProperties();
   const repo = prop.GITHUB_OWNER + '/' + prop.GITHUB_REPO;
   
-//  var jsonString = e.postData.getDataAsString();
-//  var jsonData = JSON.parse(jsonString);
-  
-  var data = e.parameter;
-  
-  if (data['repository']['full_name'] != repo) {
+  if (data['repository']['full_name'] != repo && data['comment'] != undefined) {
     throw new Error("invalid repository.");
   }
   
@@ -23,7 +30,7 @@ function doPost(e) {
   }).map(function(row){ return row[0] });
   Logger.log(channels);
   
-  var message = makeMessage(data, prop);
+  var message = makeMessage(data['action'], data['comment'], data['issue'], repo, prop);
   Logger.log(message);
   
   /* for Slack */
@@ -40,40 +47,53 @@ function doPost(e) {
   })
 }
 
-function makeMessage(data, prop) {
-  var action = '';
-  switch(data['action']) {
+function makeMessage(action, comment, issue, repo, prop) {
+  var user = '<' + comment['user']['html_url'] + '|' + comment['user']['login'] + '>';
+  var issueTitle = '<' + comment['html_url'] + '|' + '#' + issue['number'] + ': ' + issue['title'] + '>';
+
+  var actionText = '';
+  var text = '';
+  switch(action) {
     case 'created':
-      action = 'New';
+      actionText = 'New';
+      text = comment['body'];
       break;
     case 'edited':
-      action = 'Edit';
+      actionText = 'Edit';
+      text = getIssueCommentBody(comment['id'], prop);
       break;
     case 'deleted':
-      action = 'Delet';
+      actionText = 'Delet';
+      text = comment['body'];
       break;
   }
-  var user = '<' + data['comment']['user']['html_url'] + '|' + data['comment']['user']['login'] + '>';
-  var issue = '<' + data['comment']['html_url'] + '|' + '#' + data['issue']['number'] + ': ' + data['issue']['title'] + '>';
-  var pretext = '[' + data['repository']['full_name'] + '] ' + action + ' comment by ' + user + ' on isuue ' + issue;
+  
+  var pretext = '[' + repo + '] ' + actionText + ' comment by ' + user + ' on isuue ' + issueTitle;
   return {
     'attachments': JSON.stringify([{
       'pretext': pretext,
       'color': prop.COLOR,
-      'text': data['comment']['body']
+      'text': text
     }])
   };
 }
 
+function getIssueCommentBody(id, prop) {
+  var github = GitHubAPI.create(prop.GITHUB_OWNER, prop.GITHUB_REPO, prop.GITHUB_API_TOKEN);
+  var comment = github.get("/issues/comments/" + id);
+  return comment['body'];
+}
+
+
 function test() {
   var prop = PropertiesService.getScriptProperties().getProperties();
   var data = {
-    'action': 'created',
+    'action': 'edited',
     'repository': {
       'full_name': prop.GITHUB_OWNER + '/' + prop.GITHUB_REPO
     },
     'issue': {
-      'number': 1,
+      'number': 15,
       'title': 'このリポジトリは必要か'
     },
     'comment': {
@@ -81,9 +101,10 @@ function test() {
         'login': 'matsubara0507',
         'html_url': 'https://github.com/matsubara0507'
       },
-      'html_url': 'https://github.com/IGGG/management/issues/1#issuecomment-294675028',
-      'body': 'ということで、閉じてもいいかね？(テスト)'
+      'html_url': 'https://github.com/IGGG/management/issues/15#issuecomment-301657645',
+      'body': 'テストテスト',
+      'id': 301657645
     }
   };
-  doPost({ 'parameter': data });
+  postMessage(data);
 }
