@@ -20,7 +20,7 @@ function postMessage(data, channelName) {
   
   var number = data['issue']['number'];
  
-  var message = makeMessage(data['action'], data['issue'], repo, prop);
+  var message = makeMessage(data['action'], data['issue'], repo, data['sender'], prop);
   Logger.log(message);
   
   /* for Slack */
@@ -34,8 +34,8 @@ function postMessage(data, channelName) {
   Logger.log(slackApp.postMessage(channelName, '', _.extend(option, message)));
 }
 
-function makeMessage(action, issue, repo, prop) {
-  var user = '<' + issue['user']['html_url'] + '|' + issue['user']['login'] + '>';
+function makeMessage(action, issue, repo, sender, prop) {
+  var user = '<' + sender['html_url'] + '|' + sender['login'] + '>';
 
   var actionText = '';
   var text = '';
@@ -90,6 +90,10 @@ function test() {
       },
     'html_url': 'https://github.com/' + prop.GITHUB_OWNER + '/' + prop.GITHUB_REPO + '/issues/15',
     'body': 'なんか知らぬ間に決まってる感じもある\n自分で見に行けってのもあるけどサ'
+    },
+    'sender': {
+      'login': 'matsubara0507',
+      'html_url': 'https://github.com/matsubara0507'
     }
   };
   postMessage(data, 'bot-test');
