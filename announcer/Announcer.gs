@@ -19,13 +19,17 @@ function doPost(e) {
     throw new Error('invalid bot name.');
   }
   
-  var result = tweet(message.slice(1, message.length).join('\n'));
-  
   var text = '';
-  if (result != 'error') {
-    text = 'Success!\n' + 'https://twitter.com/IGGGorg_PR/status/' + result['id_str'];
+  var messageBody = message.slice(1, message.length).join('\n');
+  if (messageBody.indexOf('http') == -1) {
+    text = 'Denied: do not include "http".';
   } else {
-    text = 'Denied...'
+    var result = tweet(messageBody);
+    if (result != 'error') {
+      text = 'Success!\n' + 'https://twitter.com/IGGGorg_PR/status/' + result['id_str'];
+    } else {
+      text = 'Denied...';
+    }
   }
   Logger.log(slackApp.postMessage(channelName, text, option));
 }
@@ -104,7 +108,7 @@ function test() {
   var e = { 
     parameter: {
       token: prop.VERIFY_TOKEN,
-      text: '@announcer\nhello test!!',
+      text: '@announcer\nhello test!!\nhttps://www.iggg.org',
       channel_name: 'bot-test'
     }
   }
