@@ -5,9 +5,8 @@ function doPost(e) {
     throw new Error('invalid token.');
   }
   
-  /* Load Spread Sheet */  
+  /* Load Spread Sheet */
   var sheet = SpreadsheetApp.openById(prop.SPREAD_SHEET_ID).getSheetByName(prop.SHEET_NAME);
-  var tweets = sheet.getRange(1, 1, sheet.getMaxRows(), 1).getValues();
   
   /* for Slack */
   var slackApp = SlackApp.create(prop.SLACK_API_TOKEN);
@@ -23,30 +22,59 @@ function doPost(e) {
     case 'tweet?:':
       text = setTweet(user, body, sheet);
       break;
+    case 'tweet!:':
+      var emessage = 'Few LGTM for tweet req: ' + body;
+      text = checkLGTM(sheet, body) ? tweet(sheet, body) : emessage;
+      break;
+    case 'lgtm:':
+    case 'LGTM:':
+      text = addLGTM(sheet, user, body);
+      break;
+    default:
+      text = 'undefined trigger word: ' + e.parameter.trigger_word;
   }
   var channelName = e.parameter.channel_name;
   Logger.log(slackApp.postMessage(channelName, text, option));
+//  Logger.log(text)
 }
 
 function setTweet(user, body, sheet) {
-  var text = '';
-  if (body.indexOf('http') == -1) {
-    text = 'Denied: do not include "http".';
-  } else {
-    var result = tweet(body);
-    if (result != 'error') {
-      text = 'Success!\n' + 'https://twitter.com/IGGGorg_PR/status/' + result['id_str'];
-    } else {
-      text = 'Denied...';
-    }
+  const rowNum = sheet.getLastRow() + 1;
+  sheet.getRange(rowNum, 1).setValue(body);
+  sheet.getRange(rowNum, 2).setValue(1);
+  sheet.getRange(rowNum, 3).setValue(user);
+  return 'set tweet request: ' + rowNum;
+}
+
+function checkLGTM(sheet, rowNum) {
+  const condNum = 4;
+  return sheet.getRange(rowNum, condNum).getValue() != '';
+}
+
+function addLGTM(sheet, user, rowNum) {
+  var colNum = sheet.getRange(rowNum, 2).getValue();
+  var users = sheet.getRange(rowNum, 3, 1, colNum).getValues()[0];
+  for (var i = 0; i < users.length; i++) {
+    if (users[i] == user)
+      return '' + user + ' already done LGTM.'
   }
-  return text;
+  sheet.getRange(rowNum, colNum + 3).setValue(user);
+  return 'OK thanks!';
+}
+
+function tweet(sheet, rowNum) {
+  var result = postTweet(sheet.getRange(rowNum, 1).getValue());
+  if (result != 'error') {
+    return 'Success!\n' + 'https://twitter.com/IGGGorg_PR/status/' + result['id_str'];
+  } else {
+    return 'Denied...';
+  }
 }
 
 /**
  * Authorizes and makes a request to the Twitter API.
  */
-function tweet(text) {
+function postTweet(text) {
   var service = getService();
   if (service.hasAccess()) {
     var url = 'https://api.twitter.com/1.1/statuses/update.json';
@@ -112,7 +140,7 @@ function authCallback(request) {
   }
 }
 
-function test() {
+function test1() {
   var prop = PropertiesService.getScriptProperties().getProperties();
   var e = { 
     parameter: {
@@ -121,6 +149,34 @@ function test() {
       channel_name: 'bot-test',
       trigger_word: 'tweet?:',
       user_name: 'noob'
+    }
+  }
+  doPost(e);
+}
+
+function test2() {
+  var prop = PropertiesService.getScriptProperties().getProperties();
+  var e = { 
+    parameter: {
+      token: prop.VERIFY_TOKEN,
+      text: 'tweet!: 1',
+      channel_name: 'bot-test',
+      trigger_word: 'tweet!:',
+      user_name: 'noob'
+    }
+  }
+  doPost(e);
+}
+
+function test3() {
+  var prop = PropertiesService.getScriptProperties().getProperties();
+  var e = { 
+    parameter: {
+      token: prop.VERIFY_TOKEN,
+      text: 'lgtm: 1',
+      channel_name: 'bot-test',
+      trigger_word: 'lgtm:',
+      user_name: 'gion'
     }
   }
   doPost(e);
