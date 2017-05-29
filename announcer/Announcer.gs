@@ -5,6 +5,10 @@ function doPost(e) {
     throw new Error('invalid token.');
   }
   
+  /* Load Spread Sheet */  
+  var sheet = SpreadsheetApp.openById(prop.SPREAD_SHEET_ID).getSheetByName(prop.SHEET_NAME);
+  var tweets = sheet.getRange(1, 1, sheet.getMaxRows(), 1).getValues();
+  
   /* for Slack */
   var slackApp = SlackApp.create(prop.SLACK_API_TOKEN);
 
@@ -12,26 +16,31 @@ function doPost(e) {
   const BOT_ICON = 'http://drive.google.com/uc?export=view&id=' + prop.ICON_ID;
   var option = { username : BOT_NAME, icon_url : BOT_ICON, link_names : 1 };
   
-  var message = e.parameter.text.split('\n');
-  var channelName = e.parameter.channel_name;
-  
-  if (message[0] != ('@' + BOT_NAME)) {
-    throw new Error('invalid bot name.');
-  }
-  
+  var body = e.parameter.text.slice(e.parameter.trigger_word.length).trim();
+  var user = e.parameter.user_name;
   var text = '';
-  var messageBody = message.slice(1, message.length).join('\n');
-  if (messageBody.indexOf('http') == -1) {
+  switch (e.parameter.trigger_word) {
+    case 'tweet?:':
+      text = setTweet(user, body, sheet);
+      break;
+  }
+  var channelName = e.parameter.channel_name;
+  Logger.log(slackApp.postMessage(channelName, text, option));
+}
+
+function setTweet(user, body, sheet) {
+  var text = '';
+  if (body.indexOf('http') == -1) {
     text = 'Denied: do not include "http".';
   } else {
-    var result = tweet(messageBody);
+    var result = tweet(body);
     if (result != 'error') {
       text = 'Success!\n' + 'https://twitter.com/IGGGorg_PR/status/' + result['id_str'];
     } else {
       text = 'Denied...';
     }
   }
-  Logger.log(slackApp.postMessage(channelName, text, option));
+  return text;
 }
 
 /**
@@ -108,8 +117,10 @@ function test() {
   var e = { 
     parameter: {
       token: prop.VERIFY_TOKEN,
-      text: '@announcer\nhello test!!\nhttps://www.iggg.org',
-      channel_name: 'bot-test'
+      text: 'tweet?:\nhello test!!\nhttps://www.iggg.org',
+      channel_name: 'bot-test',
+      trigger_word: 'tweet?:',
+      user_name: 'noob'
     }
   }
   doPost(e);
