@@ -16,58 +16,82 @@ function doPost(e) {
   var option = { username : BOT_NAME, icon_url : BOT_ICON, link_names : 1 };
   
   var body = e.parameter.text.slice(e.parameter.trigger_word.length).trim();
-  var user = e.parameter.user_name;
+  var timestamp = e.parameter.timestamp;
+  var channelId = e.parameter.channel_id;
   var text = '';
+  var _ = Underscore.load();
   switch (e.parameter.trigger_word) {
-    case 'tweet?:':
-      text = setTweet(user, body, sheet);
+    case '$tweet?':
+      const rowNum = sheet.getLastRow() + 1;
+      setTweetRequest(sheet, rowNum, _.extend(e.parameter, {body: body}));
+      text = 'set tweet request: ' + rowNum;
       break;
-    case 'tweet!:':
-      var emessage = 'Few LGTM for tweet req: ' + body;
-      text = checkLGTM(sheet, body) ? tweet(sheet, body) : emessage;
-      break;
-    case 'lgtm:':
-    case 'LGTM:':
-      text = addLGTM(sheet, user, body);
+    case '$tweet!':
+      var tr = getTweetRequest(sheet, body);
+      text = tr.ok ? tweetWithCheck(tr, prop.SLACK_API_TOKEN) : tr.error;
       break;
     default:
       text = 'undefined trigger word: ' + e.parameter.trigger_word;
   }
-  var channelName = e.parameter.channel_name;
-  Logger.log(slackApp.postMessage(channelName, text, option));
-//  Logger.log(text)
+  Logger.log(slackApp.postMessage(channelId, text, option));
 }
 
-function setTweet(user, body, sheet) {
-  const rowNum = sheet.getLastRow() + 1;
-  sheet.getRange(rowNum, 1).setValue(body);
-  sheet.getRange(rowNum, 2).setValue(1);
-  sheet.getRange(rowNum, 3).setValue(user);
-  return 'set tweet request: ' + rowNum;
-}
-
-function checkLGTM(sheet, rowNum) {
-  const condNum = 4;
-  return sheet.getRange(rowNum, condNum).getValue() != '';
-}
-
-function addLGTM(sheet, user, rowNum) {
-  var colNum = sheet.getRange(rowNum, 2).getValue();
-  var users = sheet.getRange(rowNum, 3, 1, colNum).getValues()[0];
-  for (var i = 0; i < users.length; i++) {
-    if (users[i] == user)
-      return '' + user + ' already done LGTM.'
+function getTweetRequest(sheet, rowNum) {
+  if (isNaN(rowNum)) {
+    return { ok: false, error: 'please input number: ' + rowNum };
   }
-  sheet.getRange(rowNum, colNum + 3).setValue(user);
-  return 'OK thanks!';
+  var body = sheet.getRange(rowNum, 1).getValue();
+  if (body == '') {
+    return { ok: false, error: 'not found tweet request: ' + rowNum }; 
+  }
+  return {
+    ok: true,
+    body: body,
+    channel_id: sheet.getRange(rowNum, 2).getValue(),
+    timestamp: sheet.getRange(rowNum, 3).getValue().slice(1)
+  };
 }
 
-function tweet(sheet, rowNum) {
-  var result = postTweet(sheet.getRange(rowNum, 1).getValue());
-  if (result != 'error') {
-    return 'Success!\n' + 'https://twitter.com/IGGGorg_PR/status/' + result['id_str'];
-  } else {
+function setTweetRequest(sheet, rowNum, tr) {
+  sheet.getRange(rowNum, 1).setValue(tr.body);
+  sheet.getRange(rowNum, 2).setValue(tr.channel_id);
+  sheet.getRange(rowNum, 3).setValue('t' + tr.timestamp);  
+}
+
+function tweetWithCheck(tr, token) {
+  var url = 'https://slack.com/api/reactions.get';
+  var options = {
+    method: 'post',
+    payload: {
+      token: token,
+      channel: tr.channel_id,
+      timestamp: tr.timestamp
+    }
+  };
+  var result = JSON.parse(UrlFetchApp.fetch(url, options));
+  if (!result.ok) {
+    return 'error: ' + result.error;
+  }
+  const borderline = 2;
+  var lgtm = 0;
+  for (var i in result.message.reactions) {
+    var reaction = result.message.reactions[i];
+    if (reaction.name == '+1') {
+      lgtm = reaction.count;
+    }
+  }
+  var emassage = 'Few :+1: for tweet req: need ' + borderline + ', now ' + lgtm;
+  return lgtm >= borderline ? tweet(tr.body) : emassage;
+}
+
+function tweet(body) {
+  var result = postTweet(body);
+  if (result == 'error') {
     return 'Denied...';
+  } else if (result.errors != undefined) {
+    return 'Denied: ' + result.errors[0].code + ' ' + result.errors[0].message;
+  } else {
+    return 'Success!\n' + 'https://twitter.com/IGGGorg_PR/status/' + result['id_str'];
   }
 }
 
@@ -83,7 +107,8 @@ function postTweet(text) {
     };
     var response = service.fetch(url, {
       method: 'post',
-      payload: payload
+      payload: payload,
+      muteHttpExceptions: true
     });
     var result = JSON.parse(response.getContentText());
     Logger.log(JSON.stringify(result, null, 2));
@@ -145,9 +170,11 @@ function test1() {
   var e = { 
     parameter: {
       token: prop.VERIFY_TOKEN,
-      text: 'tweet?:\nhello test!!\nhttps://www.iggg.org',
+      text: '$tweet?\nhello test!!\nhttps://www.iggg.org',
+      channel_id: 'C4YNUSZN0',
       channel_name: 'bot-test',
-      trigger_word: 'tweet?:',
+      timestamp: '1496052878.354975',
+      trigger_word: '$tweet?',
       user_name: 'noob'
     }
   }
@@ -159,24 +186,10 @@ function test2() {
   var e = { 
     parameter: {
       token: prop.VERIFY_TOKEN,
-      text: 'tweet!: 1',
+      text: '$tweet! 1',
       channel_name: 'bot-test',
-      trigger_word: 'tweet!:',
+      trigger_word: '$tweet!',
       user_name: 'noob'
-    }
-  }
-  doPost(e);
-}
-
-function test3() {
-  var prop = PropertiesService.getScriptProperties().getProperties();
-  var e = { 
-    parameter: {
-      token: prop.VERIFY_TOKEN,
-      text: 'lgtm: 1',
-      channel_name: 'bot-test',
-      trigger_word: 'lgtm:',
-      user_name: 'gion'
     }
   }
   doPost(e);
