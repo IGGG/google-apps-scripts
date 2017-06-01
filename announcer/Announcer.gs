@@ -23,17 +23,25 @@ function doPost(e) {
   switch (e.parameter.trigger_word) {
     case '$tweet?':
       const rowNum = sheet.getLastRow() + 1;
-      setTweetRequest(sheet, rowNum, _.extend(e.parameter, {body: body}));
+      setTweetRequest(sheet, _.extend(e.parameter, {body: body, num: rowNum}));
       text = 'set tweet request: ' + rowNum;
       break;
     case '$tweet!':
       var tr = getTweetRequest(sheet, body);
-      text = tr.ok ? tweetWithCheck(tr, prop.SLACK_API_TOKEN) : tr.error;
+      if (tr.ok) {
+        var result = tweetWithCheck(tr, prop.SLACK_API_TOKEN);
+        if (result.ok)
+          sheet.getRange(tr.num, 4).setValue(1);
+        text = result.text;
+      } else {
+        text = tr.error;
+      }
       break;
     default:
       text = 'undefined trigger word: ' + e.parameter.trigger_word;
   }
   Logger.log(slackApp.postMessage(channelId, text, option));
+//  Logger.log(text);
 }
 
 function getTweetRequest(sheet, rowNum) {
@@ -48,17 +56,23 @@ function getTweetRequest(sheet, rowNum) {
     ok: true,
     body: body,
     channel_id: sheet.getRange(rowNum, 2).getValue(),
-    timestamp: sheet.getRange(rowNum, 3).getValue().slice(1)
+    timestamp: sheet.getRange(rowNum, 3).getValue().slice(1),
+    num: rowNum,
+    done: sheet.getRange(rowNum, 4).getValue() == 1
   };
 }
 
-function setTweetRequest(sheet, rowNum, tr) {
-  sheet.getRange(rowNum, 1).setValue(tr.body);
-  sheet.getRange(rowNum, 2).setValue(tr.channel_id);
-  sheet.getRange(rowNum, 3).setValue('t' + tr.timestamp);  
+function setTweetRequest(sheet, tr) {
+  sheet.getRange(tr.num, 1).setValue(tr.body);
+  sheet.getRange(tr.num, 2).setValue(tr.channel_id);
+  sheet.getRange(tr.num, 3).setValue('t' + tr.timestamp);  
+  sheet.getRange(tr.num, 4).setValue(tr.done ? 1 : 0);
 }
 
 function tweetWithCheck(tr, token) {
+  if (tr.done) {
+    return { ok: false, text: 'TR ' + tr.num + ' has already been tweeted.' };
+  }
   var url = 'https://slack.com/api/reactions.get';
   var options = {
     method: 'post',
@@ -70,7 +84,7 @@ function tweetWithCheck(tr, token) {
   };
   var result = JSON.parse(UrlFetchApp.fetch(url, options));
   if (!result.ok) {
-    return 'error: ' + result.error;
+    return { ok: false, text: 'error: ' + result.error }; 
   }
   const borderline = 2;
   var lgtm = 0;
@@ -81,17 +95,18 @@ function tweetWithCheck(tr, token) {
     }
   }
   var emassage = 'Few :+1: for tweet req: need ' + borderline + ', now ' + lgtm;
-  return lgtm >= borderline ? tweet(tr.body) : emassage;
+  return lgtm >= borderline ? tweet(tr) : { ok: false, text: emassage }
 }
 
 function tweet(body) {
   var result = postTweet(body);
+//  var result = { id_str: 'tweet!!' };
   if (result == 'error') {
-    return 'Denied...';
+    return { ok: false, text: 'Denied...' };
   } else if (result.errors != undefined) {
-    return 'Denied: ' + result.errors[0].code + ' ' + result.errors[0].message;
+    return { ok: false, text: 'Denied: ' + result.errors[0].code + ' ' + result.errors[0].message };
   } else {
-    return 'Success!\n' + 'https://twitter.com/IGGGorg_PR/status/' + result['id_str'];
+    return { ok: true, text: 'Success!\n' + 'https://twitter.com/IGGGorg_PR/status/' + result['id_str'] };
   }
 }
 
