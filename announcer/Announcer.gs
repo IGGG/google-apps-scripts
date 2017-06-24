@@ -95,7 +95,7 @@ function tweetWithCheck(tr, token) {
     }
   }
   var emassage = 'Few :+1: for tweet req: need ' + borderline + ', now ' + lgtm;
-  return lgtm >= borderline ? tweet(tr) : { ok: false, text: emassage }
+  return lgtm >= borderline ? tweet(tr.body) : { ok: false, text: emassage }
 }
 
 function tweet(body) {
