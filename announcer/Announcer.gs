@@ -24,7 +24,7 @@ function doPost(e) {
     case '$tweet?':
       const rowNum = sheet.getLastRow() + 1;
       setTweetRequest(sheet, _.extend(e.parameter, {body: body, num: rowNum}));
-      text = 'set tweet request: ' + rowNum;
+      text = '@channel set tweet request: ' + rowNum;
       break;
     case '$tweet!':
       var tr = getTweetRequest(sheet, body);
